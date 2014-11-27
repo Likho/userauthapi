@@ -11,12 +11,8 @@
 |
 */
 
-Route::get('/', function()
-{
-	return View::make('hello');
-});
-
 Route::post('users',array('uses'=>'UserController@create','as'=>'users'));
 Route::post('users/activate/{id}/{activationcode}',array('uses'=>'UserController@activate','as'=>'users.activate'));
 Route::post('users/login',array('uses'=>'UserController@postLogin','as'=>'users.login'));
-Route::post('users/password',array('uses'=>'UserController@postResetPassword','as'=>'users.password'));
+Route::post('users/password',array('uses'=>'UserController@retreiveResetPasswordCode','as'=>'users.password'));
+Route::post('users/password/{resetpasswordcode}/{id}',array('uses'=>'UserController@postResetPassword','as'=>'users.postresetpassword'));

@@ -25,7 +25,7 @@ class User extends Eloquent {
     public static function validate( $input ){
 
         $rules = array(
-            'email'=>'required|email',
+            'email'=>'sometimes|required|email',
             'password'=>'sometimes|required'
         );
 
@@ -36,5 +36,6 @@ class User extends Eloquent {
 
         return Validator::make($input,$rules,$messages);
     }
+
 
 }

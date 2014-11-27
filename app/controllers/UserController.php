@@ -3,16 +3,6 @@
 class UserController extends \BaseController {
 
 	/**
-	 * Display a listing of the resource.
-	 *
-	 * @return Response
-	 */
-	public function index()
-	{
-		//
-	}
-
-	/**
 	 * Store a newly created user in the database.
 	 *
 	 * @return Response
@@ -31,22 +21,12 @@ class UserController extends \BaseController {
 
                 $user = Sentry::register($input);
                 if( $user ){
-                    //User created , send activation via email
+                    //User created , return activation email.
                     $activationCode = $user->getActivationCode();
 
-                    return Response::json(array('user_created'=>'User created.','activation_code'=>$activationCode));
+                    return Response::json(array('user_created'=>true,'activation_code'=>$activationCode));
                 }
-
-
-            }catch (Cartalyst\Sentry\Users\LoginRequiredException $e)
-            {
-                return Response::json(array('login_required'=>'Login field is required.'));
-
-            }catch (Cartalyst\Sentry\Users\PasswordRequiredException $e)
-            {
-                return Response::json(array('password_required'=>'Password field is required.'));
-            }catch (Cartalyst\Sentry\Users\UserExistsException $e)
-            {
+            }catch (Cartalyst\Sentry\Users\UserExistsException $e){
                 return Response::json(array('user_exists'=>'User with this login already exists.'));
             }
 
@@ -70,9 +50,9 @@ class UserController extends \BaseController {
 
             if( $user->attemptActivation($activationCode) ){
 
-                return Response::json(array('activation_success'=>'User activated successfully ..'));
+                return Response::json(array('user_activated'=>true));
             }else{
-                return Response::json(array('activation_failed'=>'User activation failed ..'));
+                return Response::json(array('user_activated'=>false));
             }
 
         }catch (Cartalyst\Sentry\Users\UserNotFoundException $e)
@@ -117,28 +97,30 @@ class UserController extends \BaseController {
             }
 
         }else{
+
             return Response::json($v->messages());
         }
     }
 
     /**
-     * Send Password Request
+     * Retrieve user's reset password
      */
-    public function postResetPassword(){
+    public function retrieveResetPasswordCode(){
 
         $input = Input::all();
+
+        //Check that the email field is sent through
         $v = User::validate($input);
 
         if( $v->passes() ){
 
             try{
 
-                // Find the user using the user email address
+                // Find the user using the user email address and get password reset code
                 $user = Sentry::findUserByLogin($input['email']);
-                // Get the password reset code
                 $resetCode = $user->getResetPasswordCode();
 
-                return Response::json(array('reset_password_code'=>$resetCode));
+                return Response::json(array('reset_password_code'=>$resetCode,'user_id'=>$user->id));
 
             }catch (Cartalyst\Sentry\Users\UserNotFoundException $e)
             {
@@ -149,7 +131,52 @@ class UserController extends \BaseController {
         }
     }
 
-	/**
+    /**
+     * Now Reset Password, user id can be sent
+     */
+    public function postResetPassword( $passwordResetCode, $userID ){
+
+        //Get the user's new password
+        $input = Input::all();
+
+        $v = User::validate($input);
+
+        if( $v->passes() ){
+
+            try
+            {
+                // Find the user using the user id
+                $user = Sentry::findUserById($userID);
+
+                // Check if the reset password code is valid
+                if ($user->checkResetPasswordCode($passwordResetCode))
+                {
+                    // Attempt to reset the user password
+                    if ($user->attemptResetPassword($passwordResetCode, $input['password']))
+                    {
+                        return Response::json(array('password_reset_success'=>true));
+                    }
+                    else
+                    {
+                        return Response::json(array('password_reset_success'=>false));
+                    }
+                }
+                else
+                {
+                    return Response::json(array('invalid_reset_code'=>'Invalid code'));
+                }
+            }
+            catch (Cartalyst\Sentry\Users\UserNotFoundException $e)
+            {
+                return Response::json(array('user_not_found'=>'User was not found.'));
+            }
+
+        }else{
+            return Response::json($v->messages());
+        }
+    }
+
+    /**
 	 * Update the specified resource in storage.
 	 *
 	 * @param  int  $id
