@@ -3,7 +3,7 @@
 <head>
 	<meta charset="UTF-8">
 	<title>Laravel PHP Framework</title>
-    <link href="{{ asset('css/default.css') }}" rel="stylesheet">
+    <link href="{{ asset('css/default.css') }}" rel="stylesheet" type="text/css" />
 </head>
 <body>
 	<div class="welcome">
