@@ -2,14 +2,14 @@
 
 use Illuminate\Support\ServiceProvider;
 
-class UserServiceProvider extends ServiceProvider {
+class UserServiceProvider extends ServiceProvider
+{
 
     public function register()
     {
-        $this->app->bind('Tousca\Users\TouscaUserInterface', 'Tousca\Users\TouscaUser');
+        $this->app->bind('Likho\Users\LikhoUserInterface', 'Likho\Users\LikhoUser');
 
     }
-
 
 
 }

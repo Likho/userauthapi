@@ -1,17 +1,15 @@
 <?php
 
-use Illuminate\Support\Facades\Response;
-
 class UserController extends \BaseController
 {
 
-    public function __construct( Response $response )
+    public function __construct(\Likho\Users\LikhoUserInterface $user)
     {
-        $this->response   = $response;
+        $this->user = $user;
     }
+
     /**
      * Store a newly created user in the database.
-     *
      * @return Response
      */
     public function create()
@@ -20,20 +18,11 @@ class UserController extends \BaseController
         $v = User::validate($input);
 
         if ($v->passes()) {
-            //Create the user with sentry
-            try {
-                $user = Sentry::register($input);
-                if ($user) {
-                    //User created , return activation email.
-                    $activationCode = $user->getActivationCode();
-
-                    return $this->response->json(array('type' => 'success','response_body' => array('activation_code'=>$activationCode)));
-                }
-            } catch (Cartalyst\Sentry\Users\UserExistsException $e) {
-                return $this->response->json(array('type' => 'error','response_body'=>array('user_already_exists'=>true)));
-            }
+            //Create user
+            $user = $this->user->registerUser(Input::get('email'), Input::get('password'), Input::get('first_name'),Input::get('last_name'));
+            return $user;
         } else {
-            return $this->response->json($v->messages());
+            return Response::json($v->messages());
         }
     }
 
@@ -45,22 +34,79 @@ class UserController extends \BaseController
      */
     public function activate($id, $activationCode)
     {
+        return $this->user->activateUser($id, $activationCode);
+    }
 
-        try {
-            $user = Sentry::findUserById($id);
+    /**
+     * Retrieve user's reset password
+     */
+    public function retrieveResetPasswordCode()
+    {
 
-            if ($user->attemptActivation($activationCode)) {
+        $input = Input::all();
+        //Check that the email field is sent through
+        $v = User::validate($input);
 
-                return $this->response->json(array('type' => 'success','response_body'=>array('activated'=>true)));
-            } else {
-                return $this->response->json(array('type' => 'error','response_body'=>array('activated'=>false)));
-            }
-        } catch (Cartalyst\Sentry\Users\UserNotFoundException $e) {
-            return $this->response->json(array('type' => 'error','response_body'=>array('user_not_found'=>true)));
+        if ($v->passes()) {
+            return $this->user->getResetPasswordCode(Input::get('email'));
+        } else {
+            return Response::json($v->messages());
         }
-        catch (Cartalyst\Sentry\Users\UserAlreadyActivatedException $e) {
-            return $this->response->json(array('type' => 'error','response_body'=>array('already_activated'=>true)));
+    }
+
+    /**
+     * Now Reset Password, user id can be sent
+     */
+    public function postResetPassword($passwordResetCode, $userID)
+    {
+        //Get the user's new password
+        $input = Input::all();
+        $v = User::validate($input);
+
+        if ($v->passes()) {
+            return $this->user->resetPassword($passwordResetCode, $userID, Input::get('password'));
+        } else {
+            return Response::json($v->messages());
         }
+    }
+
+    /**
+     * List all users
+     */
+    public function getList()
+    {
+        return $this->user->findAllUsers();
+    }
+
+    /**
+     * Getting user data for editing.
+     * @param  int $id
+     * @return Response
+     */
+    public function getUserByID($id)
+    {
+        return $this->user->findUser($id);
+    }
+
+    /**
+     * Update user data
+     */
+    public function postUpdate($id)
+    {
+
+        return $this->user->updateUser($id,Input::get('first_name'),Input::get('last_name'));
+
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     *
+     * @param  int $id
+     * @return Response
+     */
+    public function delete($id)
+    {
+
     }
 
     /**
@@ -78,173 +124,17 @@ class UserController extends \BaseController
                 // Authenticate the user
                 $user = Sentry::authenticate($input, false);
                 if ($user) {
-                    return $this->response->json($user);
+                    return Response::json($user);
                 }
             } catch (Cartalyst\Sentry\Users\WrongPasswordException $e) {
-                return $this->response->json(array('type' => 'error','response_body'=>array('incorrect_password'=>true)));
-            }
-            catch (Cartalyst\Sentry\Users\UserNotFoundException $e) {
-                return $this->response->json(array('type' => 'error','response_body'=>array('user_not_found'=>true)));
-            }
-            catch (Cartalyst\Sentry\Users\UserNotActivatedException $e) {
-                return $this->response->json(array('type' => 'error','response_body'=>array('activated'=>false)));
-            }
-        } else {
-            return $this->response->json($v->messages());
-        }
-    }
-
-    /**
-     * Retrieve user's reset password
-     */
-    public function retrieveResetPasswordCode()
-    {
-
-        $input = Input::all();
-        //Check that the email field is sent through
-        $v = User::validate($input);
-
-        if ($v->passes()) {
-
-            try {
-                // Find the user using the user email address and get password reset code
-                $user = Sentry::findUserByLogin($input['email']);
-                $resetCode = $user->getResetPasswordCode();
-
-                return $this->response->json(array('type' => 'success','response_body'=>array('reset_password_code'=>$resetCode,'user_id'=>$user->id)));
-
+                return Response::json(array('type' => 'error', 'response_body' => array('incorrect_password' => true)));
             } catch (Cartalyst\Sentry\Users\UserNotFoundException $e) {
-                return $this->response->json(array('type' => 'error','response_body'=>array('user_not_found'=>true)));
+                return Response::json(array('type' => 'error', 'response_body' => array('user_not_found' => true)));
+            } catch (Cartalyst\Sentry\Users\UserNotActivatedException $e) {
+                return Response::json(array('type' => 'error', 'response_body' => array('activated' => false)));
             }
         } else {
-            return $this->response->json($v->messages());
-        }
-    }
-
-    /**
-     * Now Reset Password, user id can be sent
-     */
-    public function postResetPassword($passwordResetCode, $userID)
-    {
-        //Get the user's new password
-        $input = Input::all();
-        $v = User::validate($input);
-
-        if ($v->passes()) {
-            try {
-                // Find the user using the user id
-                $user = Sentry::findUserById($userID);
-                // Check if the reset password code is valid
-                if ($user->checkResetPasswordCode($passwordResetCode)) {
-                    // Attempt to reset the user password
-                    if ($user->attemptResetPassword($passwordResetCode, $input['password'])) {
-                        return $this->response->json(array('type' => 'success','response_body'=>array('password_reset'=>true)));
-                    } else {
-                        return $this->response->json(array('type' => 'error','response_body'=>array('password_reset'=>false)));
-                    }
-                } else {
-                    return $this->response->json(array('type' => 'error','response_body'=>array('invalid_code'=>true)));
-                }
-            } catch (Cartalyst\Sentry\Users\UserNotFoundException $e) {
-                return $this->response->json(array('type' => 'error','response_body'=>array('user_not_found'=>true)));
-            }
-        } else {
-            return $this->response->json($v->messages());
-        }
-    }
-
-    /**
-     * List all users
-     */
-    public function getList()
-    {
-
-
-        $users = Sentry::findAllUsers();
-
-        if (count($users)) {
-
-            $userList = array();
-            $eachUser = array();
-
-            foreach ($users as $user) {
-                $eachUser['first_name'] = $user->first_name;
-                $eachUser['last_name'] = $user->last_name;
-
-                array_push($userList, $eachUser);
-            }
-
-            return $this->response->json(array('type' => 'success','response_body'=>array('users'=>$userList)));
-
-        } else {
-
-            return $this->response->json(array('type' => 'success','response_body'=>array('users'=>"No listed users")));
-        }
-    }
-
-    /**
-     * Getting user data for editing.
-     * @param  int $id
-     * @return Response
-     */
-    public function getUserByID($id)
-    {
-        try {
-            // Find the user by their id
-            $user = Sentry::findUserById($id);
-
-            //Only returning fields that can be updated
-            $userFields['first_name'] = $user->first_name;
-            $userFields['last_name'] = $user->last_name;
-
-            return $this->response->json(array('type' => 'success','response_body'=>array('user'=>$userFields)));
-
-        } catch (Cartalyst\Sentry\Users\UserNotFoundException $e) {
-            return $this->response->json(array('type' => 'error','response_body'=>array('user_not_found'=>true)));
-        }
-    }
-
-    /**
-     * Update user data
-     */
-    public function postUpdate($id)
-    {
-
-        try {
-            // Find the user using the user id
-            $user = Sentry::findUserById($id);
-
-            // Update the user details
-            $user->first_name = Input::get('first_name');
-            $user->last_name = Input::get('last_name');
-
-            // Update the user
-            if ($user->save()) {
-                return $this->response->json(array('type' => 'success','response_body' => array('updated'=>true)));
-            }
-        } catch (Cartalyst\Sentry\Users\UserNotFoundException $e) {
-            return $this->response->json(array('type' => 'error','response_body'=>array('user_not_found'=>true)));
-        }
-
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  int $id
-     * @return Response
-     */
-    public function delete($id)
-    {
-        try {
-            // Find the user using the user id
-            $user = Sentry::findUserById($id);
-            // Delete the user
-            $user->delete();
-
-            return $this->response->json(array('type' => 'success','response_body' => array('deleted'=>true)));
-        } catch (Cartalyst\Sentry\Users\UserNotFoundException $e) {
-            return $this->response->json(array('type' => 'error','response_body'=>array('user_not_found'=>true)));
+            return Response::json($v->messages());
         }
     }
 

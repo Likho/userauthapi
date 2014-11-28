@@ -123,6 +123,10 @@ return array(
 		'Illuminate\Workbench\WorkbenchServiceProvider',
         'Cartalyst\Sentry\SentryServiceProvider',
 
+        //Likho
+        'Likho\Providers\UserServiceProvider',
+
+
 	),
 
 	/*
