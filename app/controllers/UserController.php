@@ -19,7 +19,7 @@ class UserController extends \BaseController
 
         if ($v->passes()) {
             //Create user
-            $user = $this->user->registerUser(Input::get('email'), Input::get('password'), Input::get('first_name'),Input::get('last_name'));
+            $user = $this->user->registerUser(Input::get('email'), Input::get('password'), Input::get('first_name'), Input::get('last_name'));
             return $user;
         } else {
             return Response::json($v->messages());
@@ -94,7 +94,7 @@ class UserController extends \BaseController
     public function postUpdate($id)
     {
 
-        return $this->user->updateUser($id,Input::get('first_name'),Input::get('last_name'));
+        return $this->user->updateUser($id, Input::get('first_name'), Input::get('last_name'));
 
     }
 
@@ -106,7 +106,7 @@ class UserController extends \BaseController
      */
     public function delete($id)
     {
-
+        return $this->user->deleteUser($id);
     }
 
     /**
@@ -119,20 +119,7 @@ class UserController extends \BaseController
         $v = User::validate($input);
 
         if ($v->passes()) {
-
-            try {
-                // Authenticate the user
-                $user = Sentry::authenticate($input, false);
-                if ($user) {
-                    return Response::json($user);
-                }
-            } catch (Cartalyst\Sentry\Users\WrongPasswordException $e) {
-                return Response::json(array('type' => 'error', 'response_body' => array('incorrect_password' => true)));
-            } catch (Cartalyst\Sentry\Users\UserNotFoundException $e) {
-                return Response::json(array('type' => 'error', 'response_body' => array('user_not_found' => true)));
-            } catch (Cartalyst\Sentry\Users\UserNotActivatedException $e) {
-                return Response::json(array('type' => 'error', 'response_body' => array('activated' => false)));
-            }
+            return $this->user->login(Input::get('email'), Input::get('password'));
         } else {
             return Response::json($v->messages());
         }

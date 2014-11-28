@@ -2,13 +2,14 @@
 
 use Cartalyst\Sentry;
 use Cartalyst\Sentry\Users;
-use User;
 use Illuminate\Support\Facades\Response;
 use Cartalyst\Sentry\Users\UserExistsException;
 use Cartalyst\Sentry\Users\PasswordRequiredException;
 use Cartalyst\Sentry\Users\LoginRequiredException;
 use Cartalyst\Sentry\Users\UserNotFoundException;
 use Cartalyst\Sentry\Users\UserAlreadyActivatedException;
+use Cartalyst\Sentry\Users\WrongPasswordException;
+use Cartalyst\Sentry\Users\UserNotActivatedException;
 
 class LikhoUser implements LikhoUserInterface
 {
@@ -19,6 +20,14 @@ class LikhoUser implements LikhoUserInterface
         $this->response = $response;
     }
 
+    /**
+     * Register
+     * @param $email
+     * @param $password
+     * @param $firstname
+     * @param $lastname
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function registerUser($email, $password, $firstname, $lastname)
     {
         try {
@@ -41,6 +50,41 @@ class LikhoUser implements LikhoUserInterface
         }
     }
 
+    /**
+     * Login User
+     * @param $email
+     * @param $password
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function login($email, $password)
+    {
+
+        try {
+            $credentials = array(
+                'email' => $email,
+                'password' => $password,
+            );
+            // Authenticate the user
+            $user = $this->sentry->authenticate($credentials, false);
+            if ($user) {
+
+                return $this->response->json(array('type' => 'success'));
+            }
+        } catch (WrongPasswordException $e) {
+            return $this->response->json(array('type' => 'error', 'response_body' => array('incorrect_password' => true)));
+        } catch (UserNotFoundException $e) {
+            return $this->response->json(array('type' => 'error', 'response_body' => array('user_not_found' => true)));
+        } catch (UserNotActivatedException $e) {
+            return $this->response->json(array('type' => 'error', 'response_body' => array('activated' => false)));
+        }
+    }
+
+    /**
+     * Activate User
+     * @param $id
+     * @param $activationCode
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function activateUser($id, $activationCode)
     {
         try {
@@ -59,6 +103,11 @@ class LikhoUser implements LikhoUserInterface
         }
     }
 
+    /**
+     * Get password reset code
+     * @param $email
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function getResetPasswordCode($email)
     {
         try {
@@ -73,6 +122,13 @@ class LikhoUser implements LikhoUserInterface
         }
     }
 
+    /**
+     * Reset password
+     * @param $passwordResetCode
+     * @param $id
+     * @param $password
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function resetPassword($passwordResetCode, $id, $password)
     {
         try {
@@ -95,6 +151,10 @@ class LikhoUser implements LikhoUserInterface
         }
     }
 
+    /**
+     * Retrieve All Users
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function findAllUsers()
     {
         $users = $this->sentry->findAllUsers();
@@ -119,6 +179,11 @@ class LikhoUser implements LikhoUserInterface
         }
     }
 
+    /**
+     * Get user by id
+     * @param $id
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function findUser($id)
     {
         try {
@@ -136,7 +201,14 @@ class LikhoUser implements LikhoUserInterface
         }
     }
 
-    public function updateUser($id,$firstname,$lastname )
+    /**
+     * Update user
+     * @param $id
+     * @param $firstname
+     * @param $lastname
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function updateUser($id, $firstname, $lastname)
     {
         try {
             // Find the user using the user id
@@ -155,6 +227,11 @@ class LikhoUser implements LikhoUserInterface
         }
     }
 
+    /**
+     * Delete User
+     * @param $id
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function deleteUser($id)
     {
         try {
