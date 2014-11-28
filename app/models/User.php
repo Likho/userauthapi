@@ -26,7 +26,7 @@ class User extends Eloquent {
 
         $rules = array(
             'email'=>'sometimes|required|email',
-            'password'=>'sometimes|required'
+            'password'=>'sometimes|required',
         );
 
         $messages = array(

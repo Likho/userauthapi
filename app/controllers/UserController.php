@@ -9,16 +9,12 @@ class UserController extends \BaseController {
 	 */
 	public function create()
 	{
-
         $input = Input::all();
-
         $v = User::validate($input);
 
         if( $v->passes() ){
-
             //Create the user with sentry
             try{
-
                 $user = Sentry::register($input);
                 if( $user ){
                     //User created , return activation email.
@@ -29,9 +25,7 @@ class UserController extends \BaseController {
             }catch (Cartalyst\Sentry\Users\UserExistsException $e){
                 return Response::json(array('user_exists'=>'User with this login already exists.'));
             }
-
         }else{
-
             return Response::json($v->messages());
         }
 	}
@@ -45,7 +39,6 @@ class UserController extends \BaseController {
     public function activate( $id,$activationCode ){
 
         try{
-
             $user = Sentry::findUserById($id);
 
             if( $user->attemptActivation($activationCode) ){
@@ -54,7 +47,6 @@ class UserController extends \BaseController {
             }else{
                 return Response::json(array('user_activated'=>false));
             }
-
         }catch (Cartalyst\Sentry\Users\UserNotFoundException $e)
         {
             return Response::json(array('user_not_found'=>'User was not found.'));
@@ -79,7 +71,6 @@ class UserController extends \BaseController {
                 // Authenticate the user
                 $user = Sentry::authenticate($input, false);
                 if( $user ){
-
                     return Response::json($user);
                 }
             }
@@ -95,9 +86,7 @@ class UserController extends \BaseController {
             {
                 return Response::json(array('not_activated'=>'User not activated.'));
             }
-
         }else{
-
             return Response::json($v->messages());
         }
     }
@@ -108,14 +97,12 @@ class UserController extends \BaseController {
     public function retrieveResetPasswordCode(){
 
         $input = Input::all();
-
         //Check that the email field is sent through
         $v = User::validate($input);
 
         if( $v->passes() ){
 
             try{
-
                 // Find the user using the user email address and get password reset code
                 $user = Sentry::findUserByLogin($input['email']);
                 $resetCode = $user->getResetPasswordCode();
@@ -138,16 +125,13 @@ class UserController extends \BaseController {
 
         //Get the user's new password
         $input = Input::all();
-
         $v = User::validate($input);
 
         if( $v->passes() ){
-
             try
             {
                 // Find the user using the user id
                 $user = Sentry::findUserById($userID);
-
                 // Check if the reset password code is valid
                 if ($user->checkResetPasswordCode($passwordResetCode))
                 {
@@ -170,33 +154,110 @@ class UserController extends \BaseController {
             {
                 return Response::json(array('user_not_found'=>'User was not found.'));
             }
-
         }else{
             return Response::json($v->messages());
         }
     }
 
     /**
-	 * Update the specified resource in storage.
-	 *
+     * List all users
+     */
+    public function getList(){
+
+
+        $users = Sentry::findAllUsers();
+
+        if( count($users) ){
+
+            $userList = array();
+            $eachUser = array();
+
+            foreach( $users as $user ){
+                $eachUser['first_name'] = $user->first_name;
+                $eachUser['last_name'] = $user->last_name;
+
+                array_push($userList,$eachUser);
+            }
+
+            return Response::json(array('users'=>$userList));
+
+        }else{
+            return Response::json(array('no_users'=>$users));
+        }
+    }
+
+    /**
+	 * Getting user data for editing.
 	 * @param  int  $id
 	 * @return Response
 	 */
-	public function update($id)
+	public function getUserByID($id)
 	{
-		//
+        try
+        {
+            // Find the user by their id
+            $user = Sentry::findUserById($id);
+
+            //Only returning fields that can be updated
+            $userFields['first_name'] = $user->first_name;
+            $userFields['last_name'] = $user->last_name;
+
+            return Response::json($userFields);
+
+        }
+        catch (Cartalyst\Sentry\Users\UserNotFoundException $e)
+        {
+            return Response::json(array('user_not_found'=>'User was not found'));
+        }
 	}
 
+    /**
+     * Update user data
+     */
+    public function postUpdate($id){
 
-	/**
+        try
+        {
+            // Find the user using the user id
+            $user = Sentry::findUserById($id);
+
+            // Update the user details
+            $user->first_name = Input::get('first_name');
+            $user->last_name = Input::get('last_name');
+
+            // Update the user
+            if ($user->save())
+            {
+                return Response::json(array('user_updated'=>true));
+            }
+        }
+        catch (Cartalyst\Sentry\Users\UserNotFoundException $e)
+        {
+            return Response::json(array('user_not_found'=>'User was not found'));
+        }
+
+    }
+
+    /**
 	 * Remove the specified resource from storage.
 	 *
 	 * @param  int  $id
 	 * @return Response
 	 */
-	public function destroy($id)
+	public function delete($id)
 	{
-		//
+        try
+        {
+            // Find the user using the user id
+            $user = Sentry::findUserById($id);
+            // Delete the user
+            $user->delete();
+            return Response::json(array('user_deleted'=>true));
+        }
+        catch (Cartalyst\Sentry\Users\UserNotFoundException $e)
+        {
+            return Response::json(array('user_not_found'=>'User was not found'));
+        }
 	}
 
 
